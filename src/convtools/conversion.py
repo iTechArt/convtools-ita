@@ -36,8 +36,9 @@ from .base import (
     TupleComp,
     ensure_conversion,
 )
-from .joins import JoinConversion, _JoinConditions
+from .joins import JoinConversion, _JoinConditions, ColumnRef
 from .mutations import Mutations
+from .tables import TableConversion
 
 
 __all__ = ["conversion"]
@@ -115,6 +116,9 @@ class _Conversion:
     join = JoinConversion
     LEFT = _JoinConditions.LEFT
     RIGHT = _JoinConditions.RIGHT
+
+    table = TableConversion
+    col = ColumnRef
 
     def reduce(self, to_call_with_2_args, *args, **kwargs):
         if isinstance(to_call_with_2_args, type) and issubclass(

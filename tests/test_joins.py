@@ -521,3 +521,64 @@ def test_join_with_complex_pipe():
         )
         == [1, 1, 2, 3, 3]
     )
+
+
+"""
+abc_rows = c.Rows.from_csv("abc.csv", with_header=True)
+abc = abc_rows.as_columns()
+
+# row-wise reading / col-wise reading
+
+
+(
+    c.Table.from_csv("apps.csv")
+    .join(c.Table.from_csv("subs.csv"), on=["company_id"])
+    .update(total_revenue=c.col("app_revenue") + c.col("sub_revenue"))
+    .to_csv("results.csv")
+)
+
+
+columns.update()  # {}
+columns.take()  # []
+columns.drop()  # []
+
+columns.join()
+columns.concat()
+
+columns.raw()
+columns.iter_tuples()
+columns.iter_dicts()
+
+result = (
+    abc.update(
+        {
+            "app_id": abc.col("Application ID").as_type(int),
+            "app_name": abc.col("Application Name").call_method("strip"),
+            "proceeds": abc.col("Proceeds").as_type(Decimal),
+        }
+    )
+    .take(["app_id", "app_name", "proceeds"])
+    .join(
+        cde.update(
+            {
+                "sales": cde.col("Sales").as_type(Decimal),
+            }
+        ).drop(["category"]),
+        # on=c.LEFT.col("app_id") == c.RIGHT.col("app_id"),
+        on=["app_id"],
+        how="left",
+    )
+    .join(
+        efg,
+        on=["app_id"],
+        how="left",
+        suffixes=("", "_RIGHT"),
+    )
+)
+result.update(
+    {"fee_percentage": result.col("proceeds") / result.col("sales") * -1 + 1}
+).take(["company_name", "app_id", "app_name", "fee_percentage"]).to_csv(
+    "result.csv"
+)
+abc.concat(cde).to_csv("result2.csv")
+"""

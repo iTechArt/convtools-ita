@@ -1,7 +1,7 @@
 """
 This module brings join functionality to the library
 """
-import typing
+import typing as t
 from itertools import chain
 
 from .aggregations import Aggregate, ReduceFuncs
@@ -24,15 +24,54 @@ from .base import (
 )
 
 
+class ColumnRef(BaseConversion):
+    def __init__(self, name: t.Union[str, int], id_=None):
+        super().__init__()
+        self.name = name
+        self.index = None
+        self.id_ = id_
+
+    def set_index(self, index: t.Union[str, int]):
+        if not isinstance(index, (str, int)):
+            raise ValueError("bad index")
+        self.index = index
+        return self
+
+    def _gen_code_and_update_ctx(self, code_input, ctx):
+        if self.index is None:
+            raise Exception(
+                f"{self.__class__.__name__} used outside of TableConversion"
+            )
+        return GetItem(self.index).gen_code_and_update_ctx(code_input, ctx)
+
+
 class JoinException(Exception):
     pass
+
+
+class JoinCondition(NamedConversion):
+    NAME: str
+
+    def __init__(self):
+        super().__init__(self.NAME, GetItem())
+
+    def col(self, column_name: str) -> ColumnRef:
+        return ColumnRef(column_name, id_=self.NAME)
+
+
+class LeftJoinCondition(JoinCondition):
+    NAME = "left_row"
+
+
+class RightJoinCondition(JoinCondition):
+    NAME = "right_row"
 
 
 class _JoinConditions:
     """A helper object to analyze join conditions"""
 
-    LEFT = NamedConversion("left_row", GetItem())
-    RIGHT = NamedConversion("right_row", GetItem())
+    LEFT = LeftJoinCondition()
+    RIGHT = RightJoinCondition()
     LEFT_NAME = LEFT.name
     RIGHT_NAME = RIGHT.name
     _ANY = {LEFT_NAME, RIGHT_NAME}
@@ -82,7 +121,7 @@ class _JoinConditions:
         return join_conditions
 
     @classmethod
-    def _get_join_deps(cls, conv) -> typing.Set[str]:
+    def _get_join_deps(cls, conv) -> t.Set[str]:
         return {
             dep.name
             for dep in conv.get_dependencies(types=NamedConversion)
@@ -240,7 +279,7 @@ class JoinConversion(BaseConversion):
                 )
             )
 
-        inner_loop_condition: typing.Optional[ConversionWrapper] = None
+        inner_loop_condition: t.Optional[ConversionWrapper] = None
         resulting_inner_loop_conditions = list(
             chain(
                 left_row_filters,
