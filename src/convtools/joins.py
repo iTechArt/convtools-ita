@@ -22,27 +22,7 @@ from .base import (
     NamedConversion,
     Tuple,
 )
-
-
-class ColumnRef(BaseConversion):
-    def __init__(self, name: t.Union[str, int], id_=None):
-        super().__init__()
-        self.name = name
-        self.index = None
-        self.id_ = id_
-
-    def set_index(self, index: t.Union[str, int]):
-        if not isinstance(index, (str, int)):
-            raise ValueError("bad index")
-        self.index = index
-        return self
-
-    def _gen_code_and_update_ctx(self, code_input, ctx):
-        if self.index is None:
-            raise Exception(
-                f"{self.__class__.__name__} used outside of TableConversion"
-            )
-        return GetItem(self.index).gen_code_and_update_ctx(code_input, ctx)
+from .columns import ColumnRef
 
 
 class JoinException(Exception):
@@ -55,8 +35,9 @@ class JoinCondition(NamedConversion):
     def __init__(self):
         super().__init__(self.NAME, GetItem())
 
-    def col(self, column_name: str) -> ColumnRef:
-        return ColumnRef(column_name, id_=self.NAME)
+    def col(self, column_name: str) -> BaseConversion:
+
+        return self.pipe(ColumnRef(column_name, id_=self.NAME))
 
 
 class LeftJoinCondition(JoinCondition):
@@ -205,11 +186,16 @@ class JoinConversion(BaseConversion):
         self.left_conversion = self.ensure_conversion(left_conversion)
         self.right_conversion = self.ensure_conversion(right_conversion)
         self.condition = self.ensure_conversion(condition)
+        self.how = self.validate_how(how)
+
+    @classmethod
+    def validate_how(cls, how: str):
+        how = how.lower()
         if how not in ("inner", "left", "right", "outer", "full"):
             raise ValueError(how)
         if how == "full":
             how = "outer"
-        self.how = how
+        return how
 
     def _gen_code_and_update_ctx(self, code_input, ctx):
         condition = self.condition
@@ -402,7 +388,7 @@ class JoinConversion(BaseConversion):
 
         if self.how == "outer":
 
-            def _add_right_part(left_join_gen, labels_):
+            def _add_right_part(left_join_gen, labels):
                 yielded_right_ids = set()
                 for left_right in left_join_gen:
                     yielded_right_ids.add(id(left_right[1]))
@@ -410,13 +396,13 @@ class JoinConversion(BaseConversion):
 
                 yield from (
                     (None, right)
-                    for right in labels_["right_collection"]
+                    for right in labels["right_collection"]
                     if id(right) not in yielded_right_ids
                 )
 
             conv = conv.pipe(
                 _add_right_part,
-                labels_=EscapedString("labels_"),
+                labels=EscapedString("_labels"),
             )
         if pre_filter:
             conv = If(
@@ -441,7 +427,6 @@ class JoinConversion(BaseConversion):
         code_args = self.get_args_def_code(as_kwargs=False)
         code = f"""
 def {converter_name}(left_, right_{code_args}):
-    global labels_
     return {code_join}
         """
         self._code_to_converter(

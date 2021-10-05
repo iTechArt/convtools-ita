@@ -36,7 +36,8 @@ from .base import (
     TupleComp,
     ensure_conversion,
 )
-from .joins import JoinConversion, _JoinConditions, ColumnRef
+from .columns import ColumnRef
+from .joins import JoinConversion, _JoinConditions
 from .mutations import Mutations
 from .tables import TableConversion
 

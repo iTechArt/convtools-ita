@@ -271,8 +271,6 @@ class ReduceBlocks(typing.Generic[RBT]):
 
 GROUPER_TEMPLATE = """
 def {converter_name}(data_{code_args}):
-    global labels_
-    _none = {var_none}
     {var_signature_to_agg_data} = defaultdict({var_agg_data_cls})
 
 {code_group_by}
@@ -281,8 +279,6 @@ def {converter_name}(data_{code_args}):
 """
 AGGREGATE_TEMPLATE = """
 def {converter_name}(data_{code_args}):
-    global labels_
-    _none = {var_none}
     {code_init_agg_vars}
     {var_expected_checksum} = {val_expected_checksum}
     {var_checksum} = 0
@@ -647,7 +643,7 @@ class GroupBy(BaseConversion, typing.Generic[RBT]):
             "__slots__ = [{}]".format(",".join(f"'{attr}'" for attr in attrs)),
             0,
         )
-        code.add_line("def __init__(self):", 1)
+        code.add_line("def __init__(self, _none=__none__):", 1)
         if attrs:
             for attr in attrs:
                 code.add_line(f"self.{attr} = _none", 0)
@@ -811,9 +807,6 @@ class GroupBy(BaseConversion, typing.Generic[RBT]):
 
         agg_template_kwargs = dict(
             code_args=self.get_args_def_code(as_kwargs=False),
-            var_none=NaiveConversion(self._none).gen_code_and_update_ctx(
-                "", ctx
-            ),
             code_result=code_agg_result,
             var_row=var_row,
             expected_checksum=expected_checksum,

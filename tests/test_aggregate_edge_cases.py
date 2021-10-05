@@ -159,7 +159,7 @@ def test_blank_aggregate(series):
 
 def test_average(series):
     assert eq(
-        c.aggregate(c.ReduceFuncs.Average(c.item(1))).execute(series),
+        c.aggregate(c.ReduceFuncs.Average(c.item(1))).execute(series, debug=True),
         statistics.mean(x[1] for x in series),
     )
 
